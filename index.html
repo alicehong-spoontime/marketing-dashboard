@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스푼타임 마케팅 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --green:#6aa84f; --green-dark:#4e8b39; --blue:#5b9bd5; --ink:#2b2b2b;
+    --muted:#7a7a7a; --line:#e8e8e8; --bg:#f7f8f5; --card:#ffffff;
+    --warn:#e0a23b; --bad:#d9655b; --good:#6aa84f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px;}
+  header.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
+  h1{font-size:22px;margin:0;display:flex;align-items:center;gap:9px;}
+  h1 .dot{width:26px;height:26px;border-radius:50%;background:var(--green);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px;}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 20px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  select,button{font-family:inherit;font-size:13px;}
+  select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+         padding:7px 12px;border-radius:8px;transition:.15s;}
+  button:hover{border-color:var(--green);color:var(--green-dark);}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green);}
+  button.primary:hover{background:var(--green-dark);color:#fff;}
+  button.ghost{background:transparent;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin:18px 0 6px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+  .kpi .label{color:var(--muted);font-size:12px;margin-bottom:6px;}
+  .kpi .val{font-size:24px;font-weight:700;letter-spacing:-.5px;}
+  .kpi .delta{font-size:12px;margin-top:5px;}
+  .up{color:var(--good);} .down{color:var(--bad);} .flat{color:var(--muted);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+  .card h3{margin:0 0 4px;font-size:15px;}
+  .card .hint{color:var(--muted);font-size:12px;margin:0 0 12px;}
+  .chartbox{position:relative;height:260px;}
+  .section-title{font-size:16px;margin:34px 0 10px;display:flex;align-items:center;gap:8px;}
+  .tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;}
+  table{border-collapse:collapse;width:100%;min-width:920px;font-size:13px;}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right;white-space:nowrap;}
+  th{background:#f0f3ec;color:var(--ink);font-weight:600;position:sticky;top:0;text-align:right;font-size:12px;}
+  th:first-child,td:first-child{text-align:center;}
+  td[contenteditable]{cursor:text;}
+  td[contenteditable]:focus{outline:2px solid var(--green);outline-offset:-2px;background:#f3f8ef;}
+  td.calc{background:#fafbf8;color:var(--muted);font-weight:600;}
+  .rowdel{color:var(--bad);cursor:pointer;border:none;background:none;font-size:15px;padding:0 4px;}
+  tfoot td{font-weight:700;background:#f0f3ec;}
+  .help{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:14px;font-size:13px;}
+  .help h4{margin:0 0 8px;font-size:14px;}
+  .help table{min-width:auto;}
+  .help td,.help th{text-align:left;white-space:normal;}
+  .group-perf{background:#eef5ea;} .group-rev{background:#eaf1f8;}
+  .note{color:var(--muted);font-size:12px;margin-top:8px;}
+  .connbar{background:#eef5ea;border:1px solid #cfe3c4;border-radius:10px;padding:10px 14px;margin:14px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;}
+  .connbar.err{background:#fbecea;border-color:#eccac6;}
+  .connbar .ok{color:var(--green-dark);font-weight:600;}
+  .connbar a{color:var(--green-dark);text-decoration:underline;cursor:pointer;}
+  .readonly .editonly{display:none!important;}
+  .readonly #dataTable th:first-child,.readonly #dataTable td:first-child{display:none;}
+  @media(max-width:780px){.kpis{grid-template-columns:1fr 1fr;}.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1><span class="dot">🥄</span>스푼타임 마케팅 대시보드</h1>
+      <div class="sub">광고비 · 성과 · 매출 한눈에 보기 &nbsp;|&nbsp; 매달 데이터만 입력하면 자동 갱신됩니다</div>
+    </div>
+    <div class="toolbar">
+      <label style="font-size:12px;color:var(--muted)">기준 월</label>
+      <select id="monthSel"></select>
+    </div>
+  </header>
+
+  <!-- 연결 상태 -->
+  <div id="connBar" class="connbar" style="display:none"></div>
+
+  <!-- KPI 카드 -->
+  <div class="kpis" id="kpis"></div>
+
+  <!-- 차트 -->
+  <div class="grid">
+    <div class="card">
+      <h3>매출 추이</h3>
+      <p class="hint">채널별 매출(막대) + 총 광고비(선)</p>
+      <div class="chartbox"><canvas id="chartRevenue"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>ROAS 추이</h3>
+      <p class="hint">통합 ROAS = 총매출 ÷ 총광고비 / 퍼포먼스 ROAS = 광고전환매출 ÷ 퍼포먼스 광고비</p>
+      <div class="chartbox"><canvas id="chartRoas"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>예산 집행률</h3>
+      <p class="hint">계획 예산 대비 실제 집행 광고비</p>
+      <div class="chartbox"><canvas id="chartBudget"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>채널별 광고비 비교 <span style="font-weight:400;color:var(--muted);font-size:12px" id="channelMonthLabel"></span></h3>
+      <p class="hint">선택한 월의 채널별 광고비 구성</p>
+      <div class="chartbox"><canvas id="chartChannel"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 데이터 입력 -->
+  <div class="section-title">📋 데이터 <span id="tableSubtitle" style="font-size:12px;color:var(--muted);font-weight:400">(셀을 클릭해서 숫자만 입력하세요. 자동 저장됩니다)</span></div>
+  <div class="toolbar editonly" id="editTools" style="margin-bottom:10px">
+    <button class="primary" onclick="addRow()">+ 이번 달 추가</button>
+    <button onclick="exportCSV()">⬇ CSV 백업 저장</button>
+    <button onclick="document.getElementById('csvFile').click()">⬆ CSV 불러오기</button>
+    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importCSV(event)">
+    <button class="ghost" onclick="loadSample()">샘플 데이터 채우기</button>
+    <button class="ghost" style="color:var(--bad)" onclick="clearAll()">전체 지우기</button>
+  </div>
+  <div class="tablewrap">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>삭제</th>
+          <th>월<br><span style="font-weight:400;color:var(--muted)">YYYY-MM</span></th>
+          <th>계획 예산</th>
+          <th class="group-perf">메타 광고비</th>
+          <th class="group-perf">네이버 광고비</th>
+          <th class="group-perf">구글 광고비</th>
+          <th class="group-perf">바이럴 광고비</th>
+          <th class="group-perf">광고 전환매출</th>
+          <th class="group-rev">스마트스토어 매출</th>
+          <th class="group-rev">쿠팡 매출</th>
+          <th class="calc">총 광고비</th>
+          <th class="calc">총 매출</th>
+          <th class="calc">통합 ROAS</th>
+          <th class="calc">집행률</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot id="tfoot"></tfoot>
+    </table>
+  </div>
+  <p class="note">초록색 칸 = 광고비/성과(에이전시 리포트) · 파란색 칸 = 매출(스마트스토어/쿠팡 어드민) · 회색 칸 = 자동 계산</p>
+
+  <!-- 사용 가이드 -->
+  <div class="help">
+    <h4>💡 어디서 어떤 숫자를 가져오나요?</h4>
+    <table>
+      <tr><th style="width:180px">입력 칸</th><th>데이터 출처</th></tr>
+      <tr><td>계획 예산</td><td>그 달에 쓰기로 계획한 마케팅 예산 총액 (내부 계획)</td></tr>
+      <tr><td>네이버 SA(검색) / GFA(배너) / 기타 광고비</td><td>매달 <b>대행사 Monthly Report</b>의 채널별 집행 광고비. (채널이 다르면 헤더를 더블클릭해 이름을 바꿔도 됩니다)</td></tr>
+      <tr><td>바이럴 광고비</td><td>월 단위로 집행하는 <b>바이럴 광고비</b> 총액 (대행사 리포트에 없음 → 직접 입력)</td></tr>
+      <tr><td>광고 전환매출</td><td>대행사 리포트의 <b>광고 기여(전환) 매출</b> 합계 (SA Rev + GFA Rev). 퍼포먼스 ROAS 계산에 사용</td></tr>
+      <tr><td>스마트스토어 매출 / 쿠팡 매출</td><td><b>네이버 스마트스토어 / 쿠팡 어드민</b>에서 확인한 그 달 실제 매출</td></tr>
+    </table>
+    <p class="note" style="margin-top:12px">※ 매달 1회, 위 표에 한 줄씩 추가해 입력하면 카드와 차트가 자동으로 업데이트됩니다. 입력값은 이 브라우저에 자동 저장되며, 만약을 대비해 가끔 <b>CSV 백업 저장</b>을 눌러 파일로도 보관해 두세요.</p>
+  </div>
+
+</div>
+
+<script>
+// ===== 구글 시트 연동 설정 =====
+// 아래 따옴표 사이에 '웹에 게시'한 CSV 주소를 넣으면 그 시트의 데이터를 자동으로 불러옵니다.
+// (비워두면 이 브라우저에 직접 입력/저장하는 단독 모드로 동작합니다)
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1_OUGTI3TISNFbPn7Ak0vU1VAAsU7FTNRsPL3pgWmbzU/gviz/tq?tqx=out:csv";
+// (선택) '구글 시트에서 편집' 버튼이 열 일반 시트 주소. 비워두면 버튼이 숨겨집니다.
+const SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1_OUGTI3TISNFbPn7Ak0vU1VAAsU7FTNRsPL3pgWmbzU/edit";
+
+// ===== 데이터 모델 =====
+// 각 행: {month, budget, meta, naver, google, viral, adRev, smartstore, coupang}
+const FIELDS = ["month","budget","meta","naver","google","viral","adRev","smartstore","coupang"];
+const STORAGE_KEY = "spoontime_mkt_dashboard_v1";
+const HEADER_KEY = "spoontime_mkt_headers_v1";
+let rows = [];
+let charts = {};
+let connected = false;  // 구글 시트 연동 모드 여부
+
+// 대행사 Monthly Report에서 추출한 스푼타임 실제 데이터 (네이버 SA/GFA 광고비, 광고 전환매출)
+// budget/viral/smartstore/coupang은 리포트에 없어 0 — Alice가 채워야 하는 칸
+const SAMPLE = [
+  {month:"2025-10", budget:0, meta:61435,  naver:1191302, google:0, viral:0, adRev:7314040,  smartstore:0, coupang:0},
+  {month:"2025-11", budget:0, meta:828670,  naver:1280071, google:0, viral:0, adRev:7038700,  smartstore:0, coupang:0},
+  {month:"2025-12", budget:0, meta:641608,  naver:1374232, google:0, viral:0, adRev:9589320,  smartstore:0, coupang:0},
+  {month:"2026-01", budget:0, meta:661290,  naver:1257233, google:0, viral:0, adRev:9193922,  smartstore:0, coupang:0},
+  {month:"2026-02", budget:0, meta:7579,    naver:266292,  google:0, viral:0, adRev:3577200,  smartstore:0, coupang:0},
+  {month:"2026-03", budget:0, meta:222585,  naver:707807,  google:0, viral:0, adRev:9730056,  smartstore:0, coupang:0},
+  {month:"2026-04", budget:0, meta:372716,  naver:815173,  google:0, viral:0, adRev:11028370, smartstore:0, coupang:0},
+  {month:"2026-05", budget:0, meta:323017,  naver:1269480, google:0, viral:0, adRev:15483820, smartstore:0, coupang:0}
+];
+
+// ===== 유틸 =====
+const won = n => "₩" + Math.round(n).toLocaleString("ko-KR");
+const wonShort = n => {
+  if(Math.abs(n)>=100000000) return (n/100000000).toFixed(1)+"억";
+  if(Math.abs(n)>=10000) return Math.round(n/10000).toLocaleString("ko-KR")+"만";
+  return Math.round(n).toLocaleString("ko-KR");
+};
+const num = v => { const x = parseFloat(String(v).replace(/[^0-9.\-]/g,"")); return isNaN(x)?0:x; };
+const perfSpend = r => num(r.meta)+num(r.naver)+num(r.google);
+const totalSpend = r => perfSpend(r)+num(r.viral);
+const totalRev = r => num(r.smartstore)+num(r.coupang);
+const roas = r => { const s=totalSpend(r); return s? totalRev(r)/s : 0; };
+const perfRoas = r => { const s=perfSpend(r); return s? num(r.adRev)/s : 0; };
+const execRate = r => { const b=num(r.budget); return b? totalSpend(r)/b : 0; };
+const cosRatio = r => { const v=totalRev(r); return v? totalSpend(r)/v : 0; }; // 매출 대비 광고비 비중
+
+// ===== 저장/로드 =====
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); }
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(STORAGE_KEY)); if(Array.isArray(d)) rows = d; }catch(e){}
+  if(!rows.length) rows = SAMPLE.map(r=>({...r}));
+}
+const HEADERS_DEFAULT = {meta:"네이버 SA(검색)", naver:"네이버 GFA(배너)", google:"기타 광고비"};
+function loadHeaders(){
+  let h = {...HEADERS_DEFAULT};
+  try{ const d = JSON.parse(localStorage.getItem(HEADER_KEY)); if(d) h={...h,...d}; }catch(e){}
+  return h;
+}
+let HEADERS = loadHeaders();
+function applyHeaders(){
+  const ths = document.querySelectorAll("#dataTable thead th");
+  ths[3].innerHTML = HEADERS.meta; ths[4].innerHTML = HEADERS.naver; ths[5].innerHTML = HEADERS.google;
+  ["meta","naver","google"].forEach((k,i)=>{
+    ths[3+i].ondblclick = ()=>{ const nv=prompt("채널 이름 변경", HEADERS[k]); if(nv){HEADERS[k]=nv; localStorage.setItem(HEADER_KEY,JSON.stringify(HEADERS)); applyHeaders(); renderAll();} };
+    ths[3+i].title = "더블클릭하면 채널 이름을 바꿀 수 있어요";
+  });
+}
+
+// ===== 표 렌더 =====
+function renderTable(){
+  const tb = document.getElementById("tbody"); tb.innerHTML="";
+  rows.forEach((r,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML =
+      `<td><button class="rowdel" title="이 행 삭제" onclick="delRow(${i})">×</button></td>`+
+      cell(i,"month",r.month,true)+
+      cell(i,"budget",r.budget)+cell(i,"meta",r.meta)+cell(i,"naver",r.naver)+
+      cell(i,"google",r.google)+cell(i,"viral",r.viral)+cell(i,"adRev",r.adRev)+
+      cell(i,"smartstore",r.smartstore)+cell(i,"coupang",r.coupang)+
+      `<td class="calc">${wonShort(totalSpend(r))}</td>`+
+      `<td class="calc">${wonShort(totalRev(r))}</td>`+
+      `<td class="calc">${roas(r)?roas(r).toFixed(2):"-"}</td>`+
+      `<td class="calc">${execRate(r)?(execRate(r)*100).toFixed(0)+"%":"-"}</td>`;
+    tb.appendChild(tr);
+  });
+  // 합계
+  const tf=document.getElementById("tfoot"); tf.innerHTML="";
+  if(rows.length){
+    const sum=k=>rows.reduce((a,r)=>a+num(r[k]),0);
+    const tS=rows.reduce((a,r)=>a+totalSpend(r),0), tR=rows.reduce((a,r)=>a+totalRev(r),0);
+    tf.innerHTML=`<tr><td></td><td>합계</td><td>${wonShort(sum("budget"))}</td>`+
+      `<td>${wonShort(sum("meta"))}</td><td>${wonShort(sum("naver"))}</td><td>${wonShort(sum("google"))}</td>`+
+      `<td>${wonShort(sum("viral"))}</td><td>${wonShort(sum("adRev"))}</td>`+
+      `<td>${wonShort(sum("smartstore"))}</td><td>${wonShort(sum("coupang"))}</td>`+
+      `<td>${wonShort(tS)}</td><td>${wonShort(tR)}</td><td>${tS?(tR/tS).toFixed(2):"-"}</td><td></td></tr>`;
+  }
+}
+function cell(i,field,val,isMonth){
+  return `<td contenteditable="${connected?"false":"true"}" data-i="${i}" data-f="${field}">${val??""}</td>`;
+}
+// 셀 편집 반영
+document.addEventListener("input", e=>{
+  const td=e.target; if(td.tagName!=="TD"||!td.hasAttribute("contenteditable")) return;
+  const i=+td.dataset.i, f=td.dataset.f;
+  rows[i][f] = (f==="month") ? td.textContent.trim() : num(td.textContent);
+  save(); refreshExceptTable();
+});
+document.addEventListener("blur", e=>{
+  const td=e.target; if(td.tagName==="TD"&&td.hasAttribute("contenteditable")){ renderTable(); fillMonthSel(); }
+}, true);
+
+// ===== KPI =====
+function renderKPI(){
+  const box=document.getElementById("kpis");
+  const sel=document.getElementById("monthSel").value;
+  const idx=rows.findIndex(r=>r.month===sel);
+  const cur=rows[idx], prev=rows[idx-1];
+  if(!cur){ box.innerHTML=`<div class="kpi"><div class="label">데이터 없음</div><div class="val">-</div></div>`; return; }
+  const mk=(label,valStr,curV,prevV,fmt,goodUp=true)=>{
+    let d="";
+    if(prev!==undefined && prevV!==undefined && prevV!==0){
+      const ch=(curV-prevV)/Math.abs(prevV)*100;
+      const cls = ch>0?(goodUp?"up":"down"):ch<0?(goodUp?"down":"up"):"flat";
+      const arrow = ch>0?"▲":ch<0?"▼":"–";
+      d=`<div class="delta ${cls}">${arrow} ${Math.abs(ch).toFixed(1)}% <span style="color:var(--muted)">전월 대비</span></div>`;
+    }
+    return `<div class="kpi"><div class="label">${label}</div><div class="val">${valStr}</div>${d}</div>`;
+  };
+  box.innerHTML =
+    mk("총 매출", won(totalRev(cur)), totalRev(cur), prev&&totalRev(prev)) +
+    mk("총 광고비", won(totalSpend(cur)), totalSpend(cur), prev&&totalSpend(prev), null, false) +
+    mk("통합 ROAS", roas(cur).toFixed(2), roas(cur), prev&&roas(prev)) +
+    mk("광고비 비중 (매출 대비)", totalRev(cur)? (cosRatio(cur)*100).toFixed(1)+"%" : "-",
+       cosRatio(cur), (prev&&totalRev(prev))? cosRatio(prev):undefined, null, false) +
+    mk("예산 집행률", (execRate(cur)*100).toFixed(0)+"%", execRate(cur), prev&&execRate(prev), null, true);
+}
+
+// ===== 차트 =====
+function destroy(){ Object.values(charts).forEach(c=>c&&c.destroy()); charts={}; }
+function renderCharts(){
+  destroy();
+  const labels=rows.map(r=>r.month);
+  const grid={color:"#eee"}, fontC="#7a7a7a";
+  Chart.defaults.font.family="-apple-system,'Apple SD Gothic Neo',sans-serif";
+  Chart.defaults.color=fontC;
+
+  // 1. 매출추이
+  charts.rev=new Chart(document.getElementById("chartRevenue"),{
+    data:{labels,datasets:[
+      {type:"bar",label:"스마트스토어",data:rows.map(r=>num(r.smartstore)),backgroundColor:"#6aa84f",stack:"rev"},
+      {type:"bar",label:"쿠팡",data:rows.map(r=>num(r.coupang)),backgroundColor:"#9cc77f",stack:"rev"},
+      {type:"line",label:"총 광고비",data:rows.map(r=>totalSpend(r)),borderColor:"#e0a23b",backgroundColor:"#e0a23b",tension:.3,yAxisID:"y"}
+    ]},
+    options:baseOpts({stacked:true})
+  });
+  // 2. ROAS
+  charts.roas=new Chart(document.getElementById("chartRoas"),{
+    type:"line",
+    data:{labels,datasets:[
+      {label:"통합 ROAS",data:rows.map(r=>+roas(r).toFixed(2)),borderColor:"#5b9bd5",backgroundColor:"#5b9bd5",tension:.3},
+      {label:"퍼포먼스 ROAS",data:rows.map(r=>+perfRoas(r).toFixed(2)),borderColor:"#6aa84f",backgroundColor:"#6aa84f",borderDash:[5,4],tension:.3}
+    ]},
+    options:baseOpts({roas:true})
+  });
+  // 3. 예산집행률
+  charts.bud=new Chart(document.getElementById("chartBudget"),{
+    data:{labels,datasets:[
+      {type:"bar",label:"계획 예산",data:rows.map(r=>num(r.budget)),backgroundColor:"#dfe6d8"},
+      {type:"bar",label:"실제 집행",data:rows.map(r=>totalSpend(r)),backgroundColor:"#6aa84f"}
+    ]},
+    options:baseOpts({})
+  });
+  // 4. 채널별 (선택월)
+  const sel=document.getElementById("monthSel").value;
+  const cur=rows.find(r=>r.month===sel)||rows[rows.length-1];
+  document.getElementById("channelMonthLabel").textContent = cur? "("+cur.month+")" : "";
+  charts.ch=new Chart(document.getElementById("chartChannel"),{
+    type:"doughnut",
+    data:{labels:[HEADERS.meta.replace(" 광고비",""),HEADERS.naver.replace(" 광고비",""),HEADERS.google.replace(" 광고비",""),"바이럴"],
+      datasets:[{data:cur?[num(cur.meta),num(cur.naver),num(cur.google),num(cur.viral)]:[0,0,0,0],
+        backgroundColor:["#6aa84f","#5b9bd5","#e0a23b","#c98ab0"]}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"right"},
+      tooltip:{callbacks:{label:c=>c.label+": "+won(c.parsed)+" ("+(c.parsed/c.dataset.data.reduce((a,b)=>a+b,0)*100||0).toFixed(0)+"%)"}}}}
+  });
+}
+function baseOpts({stacked=false,roas=false}){
+  return {responsive:true,maintainAspectRatio:false,
+    interaction:{mode:"index",intersect:false},
+    plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+      tooltip:{callbacks:{label:c=>{
+        const v=c.parsed.y;
+        return c.dataset.label+": "+(roas? v.toFixed(2) : won(v));
+      }}}},
+    scales:{
+      x:{stacked,grid:{display:false}},
+      y:{stacked,grid:{color:"#eee"},ticks:{callback:v=> roas? v : wonShort(v)}}
+    }};
+}
+
+// ===== 월 선택 =====
+function fillMonthSel(){
+  const sel=document.getElementById("monthSel"); const prev=sel.value;
+  sel.innerHTML=""; rows.forEach(r=>{const o=document.createElement("option");o.value=o.textContent=r.month;sel.appendChild(o);});
+  if(rows.length){ sel.value = rows.some(r=>r.month===prev)? prev : rows[rows.length-1].month; }
+}
+
+// ===== 행 조작 =====
+function addRow(){
+  // 다음 달 자동 추정
+  let m="";
+  if(rows.length){ const last=rows[rows.length-1].month; const [y,mm]=last.split("-").map(Number);
+    if(y&&mm){ let nm=mm+1,ny=y; if(nm>12){nm=1;ny++;} m=ny+"-"+String(nm).padStart(2,"0"); } }
+  rows.push({month:m,budget:0,meta:0,naver:0,google:0,viral:0,adRev:0,smartstore:0,coupang:0});
+  save(); renderAll(); fillMonthSel();
+}
+function delRow(i){ if(confirm("이 행을 삭제할까요?")){ rows.splice(i,1); save(); renderAll(); fillMonthSel(); } }
+function clearAll(){ if(confirm("모든 데이터를 지웁니다. 계속할까요? (CSV 백업을 먼저 받아두세요)")){ rows=[]; save(); renderAll(); fillMonthSel(); } }
+function loadSample(){ if(confirm("샘플 데이터로 채웁니다. 현재 입력값은 사라집니다.")){ rows=SAMPLE.map(r=>({...r})); save(); renderAll(); fillMonthSel(); } }
+
+// ===== CSV =====
+function exportCSV(){
+  const head=["월","계획예산",HEADERS.meta,HEADERS.naver,HEADERS.google,"바이럴광고비","광고전환매출","스마트스토어매출","쿠팡매출"];
+  const lines=[head.join(",")];
+  rows.forEach(r=>lines.push(FIELDS.map(f=>r[f]??0).join(",")));
+  const blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="스푼타임_마케팅데이터_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+}
+// CSV 한 줄 파싱 (따옴표 안 쉼표 처리)
+function splitCSVLine(line){
+  const out=[]; let cur="", q=false;
+  for(let i=0;i<line.length;i++){ const ch=line[i];
+    if(q){ if(ch==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===',') {out.push(cur);cur="";} else cur+=ch; }
+  }
+  out.push(cur); return out;
+}
+function parseRows(text){
+  text=text.replace(/^﻿/,"");
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const out=[];
+  lines.forEach(l=>{
+    const c=splitCSVLine(l);
+    const mo=String(c[0]||"").trim().replace(/^"|"$/g,"");
+    // 월 형식(YYYY-MM 또는 YYYY-M)인 행만 데이터로 인정 → 헤더/안내문 자동 제외
+    if(!/^\d{4}-\d{1,2}$/.test(mo)) return;
+    out.push({month:mo,budget:num(c[1]),meta:num(c[2]),naver:num(c[3]),
+      google:num(c[4]),viral:num(c[5]),adRev:num(c[6]),smartstore:num(c[7]),coupang:num(c[8])});
+  });
+  return out;
+}
+function importCSV(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const out=parseRows(e.target.result);
+    if(out.length){ rows=out; save(); renderAll(); fillMonthSel(); alert(out.length+"개월 데이터를 불러왔습니다."); }
+    else alert("불러올 데이터를 찾지 못했어요. CSV 형식을 확인해 주세요.");
+    ev.target.value="";
+  };
+  reader.readAsText(file,"utf-8");
+}
+
+// ===== 구글 시트 연동 =====
+function setConnBar(html, isErr){
+  const b=document.getElementById("connBar");
+  b.style.display="flex"; b.className="connbar"+(isErr?" err":""); b.innerHTML=html;
+}
+async function syncFromSheet(){
+  setConnBar("⏳ 구글 시트에서 데이터를 불러오는 중…");
+  try{
+    const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes("?")?"&":"?") + "_t=" + Date.now(); // 캐시 우회
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = parseRows(await res.text());
+    if(!data.length) throw new Error("빈 데이터");
+    rows = data; renderAll(); fillMonthSel();
+    const now=new Date().toLocaleString("ko-KR",{hour:"2-digit",minute:"2-digit",month:"numeric",day:"numeric"});
+    const editLink = (SHEET_EDIT_URL&&SHEET_EDIT_URL.trim())
+      ? ` · <a href="${SHEET_EDIT_URL}" target="_blank">구글 시트에서 편집 ↗</a>` : "";
+    setConnBar(`<span class="ok">● 구글 시트 연동됨</span> · 마지막 동기화 ${now} · `+
+      `<a onclick="syncFromSheet()">🔄 새로고침</a>`+editLink);
+  }catch(err){
+    setConnBar(`⚠️ 시트를 불러오지 못했습니다 (${err.message}). 시트가 '웹에 게시'되어 있는지 확인해 주세요. `+
+      `<a onclick="syncFromSheet()">다시 시도</a>`, true);
+  }
+}
+
+// ===== 통합 렌더 =====
+function refreshExceptTable(){ renderKPI(); renderCharts(); }
+function renderAll(){ renderTable(); renderKPI(); renderCharts(); }
+document.getElementById("monthSel").addEventListener("change",()=>{ renderKPI(); renderCharts(); });
+
+// ===== 초기화 =====
+if(SHEET_CSV_URL && SHEET_CSV_URL.trim()){
+  connected = true;
+  document.body.classList.add("readonly");
+  document.getElementById("tableSubtitle").textContent = "(구글 시트의 내용입니다. 수정은 구글 시트에서 하세요)";
+  applyHeaders();
+  rows = [];                 // 시트에서 채움
+  renderAll(); fillMonthSel();
+  syncFromSheet();
+} else {
+  load(); applyHeaders(); fillMonthSel(); renderAll();
+}
+</script>
+</body>
+</html>
