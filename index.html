@@ -276,7 +276,8 @@ document.addEventListener("blur", e=>{
 function renderKPI(){
   const box=document.getElementById("kpis");
   const sel=document.getElementById("monthSel").value;
-  const idx=rows.findIndex(r=>r.month===sel);
+  let idx=rows.findIndex(r=>r.month===sel);
+  if(idx<0) idx=rows.length-1;           // 기준 월이 아직 안 정해졌으면 가장 최근 달로
   const cur=rows[idx], prev=rows[idx-1];
   if(!cur){ box.innerHTML=`<div class="kpi"><div class="label">데이터 없음</div><div class="val">-</div></div>`; return; }
   const mk=(label,valStr,curV,prevV,fmt,goodUp=true)=>{
@@ -437,7 +438,7 @@ async function syncFromSheet(){
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = parseRows(await res.text());
     if(!data.length) throw new Error("빈 데이터");
-    rows = data; renderAll(); fillMonthSel();
+    rows = data; fillMonthSel(); renderAll();
     const now=new Date().toLocaleString("ko-KR",{hour:"2-digit",minute:"2-digit",month:"numeric",day:"numeric"});
     const editLink = (SHEET_EDIT_URL&&SHEET_EDIT_URL.trim())
       ? ` · <a href="${SHEET_EDIT_URL}" target="_blank">구글 시트에서 편집 ↗</a>` : "";
