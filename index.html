@@ -253,8 +253,8 @@ function renderTable(){
       cell(i,"budget",r.budget)+cell(i,"meta",r.meta)+cell(i,"naver",r.naver)+
       cell(i,"google",r.google)+cell(i,"viral",r.viral)+cell(i,"adRev",r.adRev)+
       cell(i,"smartstore",r.smartstore)+cell(i,"coupang",r.coupang)+
-      `<td class="calc">${wonShort(totalSpend(r))}</td>`+
-      `<td class="calc">${wonShort(totalRev(r))}</td>`+
+      `<td class="calc">${won(totalSpend(r))}</td>`+
+      `<td class="calc">${won(totalRev(r))}</td>`+
       `<td class="calc">${roas(r)?roas(r).toFixed(2):"-"}</td>`+
       `<td class="calc">${execRate(r)?(execRate(r)*100).toFixed(0)+"%":"-"}</td>`;
     tb.appendChild(tr);
@@ -264,15 +264,17 @@ function renderTable(){
   if(rows.length){
     const sum=k=>rows.reduce((a,r)=>a+num(r[k]),0);
     const tS=rows.reduce((a,r)=>a+totalSpend(r),0), tR=rows.reduce((a,r)=>a+totalRev(r),0);
-    tf.innerHTML=`<tr><td></td><td>합계</td><td>${wonShort(sum("budget"))}</td>`+
-      `<td>${wonShort(sum("meta"))}</td><td>${wonShort(sum("naver"))}</td><td>${wonShort(sum("google"))}</td>`+
-      `<td>${wonShort(sum("viral"))}</td><td>${wonShort(sum("adRev"))}</td>`+
-      `<td>${wonShort(sum("smartstore"))}</td><td>${wonShort(sum("coupang"))}</td>`+
-      `<td>${wonShort(tS)}</td><td>${wonShort(tR)}</td><td>${tS?(tR/tS).toFixed(2):"-"}</td><td></td></tr>`;
+    tf.innerHTML=`<tr><td></td><td>합계</td><td>${won(sum("budget"))}</td>`+
+      `<td>${won(sum("meta"))}</td><td>${won(sum("naver"))}</td><td>${won(sum("google"))}</td>`+
+      `<td>${won(sum("viral"))}</td><td>${won(sum("adRev"))}</td>`+
+      `<td>${won(sum("smartstore"))}</td><td>${won(sum("coupang"))}</td>`+
+      `<td>${won(tS)}</td><td>${won(tR)}</td><td>${tS?(tR/tS).toFixed(2):"-"}</td><td></td></tr>`;
   }
 }
 function cell(i,field,val,isMonth){
-  return `<td contenteditable="${connected?"false":"true"}" data-i="${i}" data-f="${field}">${val??""}</td>`;
+  // 읽기 전용(시트 연동) 모드에서는 ₩ + 천단위 콤마로 표시, 편집 모드에서는 입력 편하게 숫자만
+  const disp = isMonth ? (val??"") : (connected ? won(num(val)) : (val??""));
+  return `<td contenteditable="${connected?"false":"true"}" data-i="${i}" data-f="${field}">${disp}</td>`;
 }
 // 셀 편집 반영
 document.addEventListener("input", e=>{
