@@ -89,7 +89,7 @@
   <div class="grid">
     <div class="card">
       <h3>매출 추이</h3>
-      <p class="hint">채널별 매출(막대) + 총 광고비(선)</p>
+      <p class="hint">채널별 매출(막대, 왼쪽 축) + 총 광고비(선, 오른쪽 축)</p>
       <div class="chartbox"><canvas id="chartRevenue"></canvas></div>
     </div>
     <div class="card">
@@ -332,11 +332,21 @@ function renderCharts(){
   // 1. 매출추이
   charts.rev=new Chart(document.getElementById("chartRevenue"),{
     data:{labels,datasets:[
-      {type:"bar",label:"스마트스토어",data:rows.map(r=>num(r.smartstore)),backgroundColor:"#6aa84f",stack:"rev"},
-      {type:"bar",label:"쿠팡",data:rows.map(r=>num(r.coupang)),backgroundColor:"#9cc77f",stack:"rev"},
-      {type:"line",label:"총 광고비",data:rows.map(r=>totalSpend(r)),borderColor:"#e0a23b",backgroundColor:"#e0a23b",tension:.3,yAxisID:"y"}
+      {type:"bar",label:"스마트스토어",data:rows.map(r=>num(r.smartstore)),backgroundColor:"#6aa84f",stack:"rev",yAxisID:"y"},
+      {type:"bar",label:"쿠팡",data:rows.map(r=>num(r.coupang)),backgroundColor:"#5b9bd5",stack:"rev",yAxisID:"y"},
+      {type:"line",label:"총 광고비",data:rows.map(r=>totalSpend(r)),borderColor:"#e0a23b",backgroundColor:"#e0a23b",tension:.3,yAxisID:"y1",borderWidth:2,pointRadius:3}
     ]},
-    options:baseOpts({stacked:true})
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+": "+won(c.parsed.y)}}},
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:true,position:"left",beginAtZero:true,grid:{color:"#eee"},
+           title:{display:true,text:"매출(₩)",color:"#6aa84f"},ticks:{color:"#6aa84f",callback:v=>wonShort(v)}},
+        y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},
+           title:{display:true,text:"광고비(₩)",color:"#e0a23b"},ticks:{color:"#e0a23b",callback:v=>wonShort(v)}}
+      }}
   });
   // 2. ROAS
   charts.roas=new Chart(document.getElementById("chartRoas"),{
